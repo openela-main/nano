@@ -1,11 +1,14 @@
 Summary:         A small text editor
 Name:            nano
 Version:         2.9.8
-Release:         1%{?dist}
+Release:         3%{?dist}
 License:         GPLv3+
 URL:             https://www.nano-editor.org
 Source:          https://www.nano-editor.org/dist/v2.9/%{name}-%{version}.tar.gz
 Source2:         nanorc
+
+# fix emergency file replacement vulnerability (CVE-2024-5742)
+Patch0:          nano-2.9.8-emergency-file-replace-vuln.patch
 
 BuildRequires:   file-devel
 BuildRequires:   gettext-devel
@@ -80,6 +83,13 @@ exit 0
 %{_datadir}/nano
 
 %changelog
+* Thu Jul 11 2024 Lukáš Zaoral <lzaoral@redhat.com> - 2.9.8-3
+- fix incomplete backport of the fix for the emergency file replacement
+  vulnerability (RHEL-35236)
+
+* Thu Jul 04 2024 Lukáš Zaoral <lzaoral@redhat.com> - 2.9.8-2
+- fix emergency file replacement vulnerability (RHEL-35236)
+
 * Mon Jun 04 2018 Kamil Dudka <kdudka@redhat.com> - 2.9.8-1
 - new upstream release
 

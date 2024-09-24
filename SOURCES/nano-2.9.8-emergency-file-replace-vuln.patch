@@ -1,0 +1,110 @@
+From 5e7a3c2e7e118c7f12d5dfda9f9140f638976aa2 Mon Sep 17 00:00:00 2001
+From: Benno Schulenberg <bensberg@telfort.nl>
+Date: Sun, 28 Apr 2024 10:51:52 +0200
+Subject: files: run `chmod` and `chown` on the descriptor, not on the filename
+
+This closes a window of opportunity where the emergency file could be
+replaced by a malicious symlink.
+
+The issue was reported by `MartinJM` and `InvisibleMeerkat`.
+
+Problem existed since version 2.2.0, commit 123110c5, when chmodding
+and chowning of the emergency .save file was added.
+
+Cherry-picked-by: Lukáš Zaoral <lzaoral@redhat.com>
+Upstream-commit: 5e7a3c2e7e118c7f12d5dfda9f9140f638976aa2
+
+---
+ src/files.c | 18 +++++++++++++++---
+ src/nano.c  | 12 +-----------
+ src/nano.h  |  2 +-
+ 3 files changed, 17 insertions(+), 15 deletions(-)
+
+diff --git a/src/files.c b/src/files.c
+index 8cdf195..e822068 100644
+--- a/src/files.c
++++ b/src/files.c
+@@ -1551,7 +1551,7 @@ bool write_file(const char *name, FILE *f_open, bool tmp,
+ 		 * set retval and then goto cleanup_and_exit. */
+ 	size_t lineswritten = 0;
+ 	const filestruct *fileptr = openfile->fileage;
+-	int fd;
++	int fd = 0;
+ 		/* The file descriptor we use. */
+ 	mode_t original_umask = 0;
+ 		/* Our umask, from when nano started. */
+@@ -1920,14 +1920,26 @@ bool write_file(const char *name, FILE *f_open, bool tmp,
+ 			goto cleanup_and_exit;
+ 		}
+ 
+-		if (copy_file(f_source, f, TRUE) != 0) {
++		if (copy_file(f_source, f, FALSE) != 0) {
+ 			statusline(ALERT, _("Error writing %s: %s"), realname,
+ 						strerror(errno));
+ 			goto cleanup_and_exit;
+ 		}
+ 
+ 		unlink(tempname);
+-	} else if (fclose(f) != 0) {
++	}
++
++#ifndef NANO_TINY
++	/* Change permissions and owner of an emergency save file to the values
++	 * of the original file, but ignore any failure as we are in a hurry. */
++	if (method == EMERGENCY && fd && openfile->current_stat) {
++		IGNORE_CALL_RESULT(fchmod(fd, openfile->current_stat->st_mode));
++		IGNORE_CALL_RESULT(fchown(fd, openfile->current_stat->st_uid,
++											openfile->current_stat->st_gid));
++	}
++#endif
++
++	if (fclose(f) != 0) {
+ 		statusline(ALERT, _("Error writing %s: %s"), realname,
+ 						strerror(errno));
+ 		goto cleanup_and_exit;
+diff --git a/src/nano.c b/src/nano.c
+index 79b5450..9b9c468 100644
+--- a/src/nano.c
++++ b/src/nano.c
+@@ -644,7 +644,7 @@ void emergency_save(const char *die_filename, struct stat *die_stat)
+ 	targetname = get_next_filename(die_filename, ".save");
+ 
+ 	if (*targetname != '\0')
+-		failed = !write_file(targetname, NULL, TRUE, OVERWRITE, FALSE);
++		failed = !write_file(targetname, NULL, TRUE, EMERGENCY, FALSE);
+ 
+ 	if (!failed)
+ 		fprintf(stderr, _("\nBuffer written to %s\n"), targetname);
+@@ -655,16 +655,6 @@ void emergency_save(const char *die_filename, struct stat *die_stat)
+ 		fprintf(stderr, _("\nBuffer not written: %s\n"),
+ 				_("Too many backup files?"));
+ 
+-#ifndef NANO_TINY
+-	/* Try to chmod/chown the saved file to the values of the original file,
+-	 * but ignore any failure as we are in a hurry to get out. */
+-	if (die_stat) {
+-		IGNORE_CALL_RESULT(chmod(targetname, die_stat->st_mode));
+-		IGNORE_CALL_RESULT(chown(targetname, die_stat->st_uid,
+-												die_stat->st_gid));
+-	}
+-#endif
+-
+ 	free(targetname);
+ }
+ 
+diff --git a/src/nano.h b/src/nano.h
+index 4fd186a..5e22fb7 100644
+--- a/src/nano.h
++++ b/src/nano.h
+@@ -157,7 +157,7 @@ typedef enum {
+ } message_type;
+ 
+ typedef enum {
+-	OVERWRITE, APPEND, PREPEND
++	OVERWRITE, APPEND, PREPEND, EMERGENCY
+ } kind_of_writing_type;
+ 
+ typedef enum {
+-- 
+2.45.2
+
