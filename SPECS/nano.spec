@@ -8,7 +8,7 @@
 Summary:         A small text editor
 Name:            nano
 Version:         5.6.1
-Release:         5%{?dist}
+Release:         6%{?dist}
 License:         GPLv3+
 URL:             https://www.nano-editor.org
 Source:          https://www.nano-editor.org/dist/latest/%{name}-%{version}.tar.xz
@@ -18,6 +18,9 @@ Source2:         nanorc
 Source11:        nano-default-editor.sh
 Source12:        nano-default-editor.csh
 Source13:        nano-default-editor.fish
+
+# fix emergency file replacement vulnerability (CVE-2024-5742)
+Patch0:          nano-5.6.1-emergency-file-replace-vuln.patch
 
 BuildRequires:   file-devel
 BuildRequires:   gettext-devel
@@ -109,6 +112,9 @@ install -Dpm 0644 %{SOURCE13} %{buildroot}%{_datadir}/fish/vendor_conf.d/%{basen
 
 
 %changelog
+* Mon Jul 01 2024 Lukáš Zaoral <lzaoral@redhat.com> - 5.6.1-6
+- fix emergency file replacement vulnerability (RHEL-35237)
+
 * Mon Aug 09 2021 Mohan Boddu <mboddu@redhat.com> - 5.6.1-5
 - Rebuilt for IMA sigs, glibc 2.34, aarch64 flags
   Related: rhbz#1991688
