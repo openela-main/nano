@@ -8,7 +8,7 @@
 Summary:         A small text editor
 Name:            nano
 Version:         5.6.1
-Release:         6%{?dist}
+Release:         7%{?dist}
 License:         GPLv3+
 URL:             https://www.nano-editor.org
 Source:          https://www.nano-editor.org/dist/latest/%{name}-%{version}.tar.xz
@@ -21,6 +21,8 @@ Source13:        nano-default-editor.fish
 
 # fix emergency file replacement vulnerability (CVE-2024-5742)
 Patch0:          nano-5.6.1-emergency-file-replace-vuln.patch
+# avoid a leak when linter aborts after producing parsable output (RHEL-51175)
+Patch1:          nano-5.6.1-fix-leak-after-linter-failure.patch
 
 BuildRequires:   file-devel
 BuildRequires:   gettext-devel
@@ -112,6 +114,9 @@ install -Dpm 0644 %{SOURCE13} %{buildroot}%{_datadir}/fish/vendor_conf.d/%{basen
 
 
 %changelog
+* Wed Dec 11 2024 Lukáš Zaoral <lzaoral@redhat.com> - 5.6.1-7
+- avoid a leak when linter aborts after producing parsable output (RHEL-51175)
+
 * Mon Jul 01 2024 Lukáš Zaoral <lzaoral@redhat.com> - 5.6.1-6
 - fix emergency file replacement vulnerability (RHEL-35237)
 

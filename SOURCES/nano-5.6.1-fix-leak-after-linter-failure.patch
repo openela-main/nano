@@ -1,0 +1,35 @@
+From 7fd38e88c12133859f48ca3191fe341795401982 Mon Sep 17 00:00:00 2001
+From: Lukáš Zaoral <lzaoral@redhat.com>
+Date: Tue, 10 Dec 2024 10:01:07 +0100
+Subject: memory: avoid a leak when linter aborts after producing parsable
+ output
+
+Any collected messages should be freed also after an
+abnormal exit of the linter.
+
+Buglet existed since version 2.4.1, commit f225991b.
+---
+ src/text.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/text.c b/src/text.c
+index e924e818..5ac9d4ca 100644
+--- a/src/text.c
++++ b/src/text.c
+@@ -2755,6 +2755,13 @@ void do_linter(void)
+ 
+ 	if (!WIFEXITED(lint_status) || WEXITSTATUS(lint_status) > 2) {
+ 		statusline(ALERT, _("Error invoking '%s'"), openfile->syntax->linter);
++		for (curlint = lints; curlint != NULL;) {
++			tmplint = curlint;
++			curlint = curlint->next;
++			free(tmplint->msg);
++			free(tmplint->filename);
++			free(tmplint);
++		}
+ 		return;
+ 	}
+ 
+-- 
+cgit v1.2.3-70-g09d2
+
